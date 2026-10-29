@@ -101,6 +101,7 @@ internals**. The edges between them are owned here (see the dependency graph), n
 | `editors` | detect installed editors/IDEs, launch one at a worktree, reveal a worktree in the file manager | [editors/SPEC.md](src/editors/SPEC.md) |
 | `history` | prompt recall + conversation search over pi's session files | [history/SPEC.md](src/history/SPEC.md) |
 | `templates` | file CRUD over pi's prompt-template dirs (global + project scoped) | [templates/SPEC.md](src/templates/SPEC.md) |
+| `devkit` | fork: the business-platform workflow tool — devkit CLI bridge (Eagle/PingCode tasks, cron refresh, Jenkins recommend/trigger) | [devkit/SPEC.md](src/devkit/SPEC.md) |
 
 `src/index.ts` re-exports `host` + the `agent` barrel's `registerBundledRuntime` seam; explicit package
 subpaths expose build support and sanctioned history fixtures without widening the runtime barrel. `src/dev.ts` boots

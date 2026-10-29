@@ -24,6 +24,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { preloadedLazy } from "../components/preloadedLazy";
 import { QuietScrollArea } from "../components/QuietScrollArea";
 import { type LayoutAttention, layoutResourceIdentity } from "../lib";
+import { DevkitPanel } from "../panels/DevkitPanel";
 import { DiffPane } from "../panels/DiffPane";
 import { FilePane } from "../panels/FilePane";
 import { FilesPanel } from "../panels/FilesPanel";
@@ -669,6 +670,7 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 					{t("shell.workbench.planRailEmpty")}
 				</div>
 			),
+			devkit: <DevkitPanel key={workspaceId} workspaceId={workspaceId} />,
 		};
 		for (const tool of Object.keys(bodies) as LayoutToolId[]) {
 			bodies[tool] = (

@@ -19,6 +19,7 @@ import type {
 } from "@thinkrail/contracts";
 import {
 	CHANGE_MUTATIONS_PROTOCOL_VERSION,
+	DEVKIT_PROTOCOL_VERSION,
 	HOST_UPDATE_RUN_PROTOCOL_VERSION,
 	LOCALES_PROTOCOL_VERSION,
 	PLAN_REVIEW_SUBAGENT_PROTOCOL_VERSION,
@@ -46,6 +47,10 @@ export function supportsUserThemes(protocolVersion: number | null): boolean {
 
 export function supportsToolResponses(protocolVersion: number | null): boolean {
 	return protocolVersion !== null && protocolVersion >= TOOL_RESPONSE_PROTOCOL_VERSION;
+}
+
+export function supportsDevkit(protocolVersion: number | null): boolean {
+	return protocolVersion !== null && protocolVersion >= DEVKIT_PROTOCOL_VERSION;
 }
 
 export function respondToTool(

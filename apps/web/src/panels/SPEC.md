@@ -1545,6 +1545,21 @@ own section. The kebab menu (`plan-menu`, a
   **Fill template with agent** (`pr.generate`) replaces the field's text with the host's one-shot draft;
   nothing is pushed until submit, and a `null` draft toasts instead of clearing the field.
 
+- **Fork: `DevkitPanel`** (the right-rail singleton tool `devkit`, wired in
+  `WorkspaceWorkbench`'s `toolBodies`) renders the business-platform workflow: an internal tab
+  strip (Eagle / PingCode / Jenkins / 更多 / 设置 — tab and list/card view choices are
+  `localStorage`-scoped view state, never host state), the task surfaces, and the settings form.
+  Task tabs subscribe to the module-local `devkitClient` external store (hydrated by `devkit.tasks` +
+  the `devkit.changed` push; manual refresh = `devkit.refresh`), render rows as
+  `编号 │ 类型 │ 状态 │ 标题` with a status pill, and degrade on `needsLogin` / `cliMissing` with
+  inline guidance. The Jenkins tab loads `devkit.jenkins.recommend` for the workspace, highlights
+  the first candidate as 推荐, and triggers through a `ConfirmDialog` (`devkit.jenkins.trigger`);
+  the dialog *is* the out-of-terminal human approval the CLI requires. Settings writes
+  `devkit.settings.update` — password fields are write-only (`hasPassword` read back), cron is
+  validated client-side by the shared contracts guard. The pane is protocol-gated on
+  `DEVKIT_PROTOCOL_VERSION` and falls back to a hint on older hosts. Server side:
+  [[submodule-server-devkit]].
+
 ## Get right
 
 - **Workbench tab chrome is not a feature panel.** The shell layout module supplies one selected-tab

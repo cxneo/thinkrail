@@ -99,6 +99,15 @@ import {
 } from "../auth";
 import { findBranchReviewOutcome, providerFromRemoteUrl } from "../branch-review";
 import { forgetWorkspaceChanges, revertChange, undoChange } from "../changes";
+import {
+	devkitAuthStates,
+	devkitJenkinsRecommend,
+	devkitJenkinsTrigger,
+	devkitSettingsView,
+	devkitTasks,
+	refreshDevkitTasks,
+	updateDevkitSettings,
+} from "../devkit";
 import { selectDirectory } from "../dialog";
 import { listAvailableEditors, openEditor, revealInFileManager } from "../editors";
 import { hostEnvironmentStatus, updateHostEnvironment } from "../environment";
@@ -1123,6 +1132,16 @@ const handlers: WsHandlers = {
 	"mcp.logout": (params, ctx) => mcpLogout(params, ctx.clientKey),
 	"mcp.readOutput": (params) => mcpReadOutput(params),
 	"mcp.readLog": (params) => mcpReadLog(params),
+	"devkit.tasks": (params) => devkitTasks(params.platform),
+	"devkit.refresh": (params) => refreshDevkitTasks(params.platform),
+	"devkit.authStatus": () => devkitAuthStates(),
+	"devkit.settings.get": () => devkitSettingsView(),
+	"devkit.settings.update": (params) => {
+		const view = updateDevkitSettings(params);
+		return view;
+	},
+	"devkit.jenkins.recommend": (params) => devkitJenkinsRecommend(params.workspaceId),
+	"devkit.jenkins.trigger": (params) => devkitJenkinsTrigger(params.workspaceId, params.jobPath),
 	"mcp.testConnection": (params, ctx) => mcpTestConnection(params, ctx.clientKey),
 	"session.resources": (params) => {
 		const p = resourceParams(params, ["workspaceId", "sessionId"]);

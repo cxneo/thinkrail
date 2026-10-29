@@ -81,6 +81,7 @@ export const LAYOUT_TOOLS: readonly LayoutToolId[] = [
 	"files",
 	"review",
 	"plan",
+	"devkit",
 ];
 
 export const LAYOUT_TOOL_DEFAULT_SIDES: Record<LayoutToolId, LayoutSide> = {
@@ -89,6 +90,7 @@ export const LAYOUT_TOOL_DEFAULT_SIDES: Record<LayoutToolId, LayoutSide> = {
 	files: "right",
 	review: "right",
 	plan: "right",
+	devkit: "right",
 };
 
 const LAYOUT_TOOL_NAMES: Record<LayoutToolId, string> = {
@@ -97,6 +99,7 @@ const LAYOUT_TOOL_NAMES: Record<LayoutToolId, string> = {
 	files: "Files",
 	review: "Review",
 	plan: "TODO List",
+	devkit: "DevKit",
 };
 
 const LAYOUT_TOOL_NAME_KEYS = {
@@ -105,6 +108,7 @@ const LAYOUT_TOOL_NAME_KEYS = {
 	files: "workbench.tool.files",
 	review: "workbench.tool.review",
 	plan: "workbench.tool.plan",
+	devkit: "workbench.tool.devkit",
 } as const satisfies Record<LayoutToolId, MessageKey>;
 
 export type ChatFirstPrompts = Readonly<Record<string, string>>;

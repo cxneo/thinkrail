@@ -9,6 +9,14 @@ import type {
 	CompletionDelivery,
 	DelegationRunStatus,
 	DetectedAccount,
+	DevkitAuthState,
+	DevkitBuildResult,
+	DevkitJenkinsRecommendation,
+	DevkitPlatform,
+	DevkitPush,
+	DevkitSettingsInput,
+	DevkitSettingsView,
+	DevkitTasksSnapshot,
 	DiffStats,
 	EditorInfo,
 	ExistingWorktreeCandidate,
@@ -123,7 +131,8 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 95;
+export const PROTOCOL_VERSION = 96;
+export const DEVKIT_PROTOCOL_VERSION = 96;
 export const PROJECT_CLONE_PROTOCOL_VERSION = 95;
 export const ONBOARDING_PROTOCOL_VERSION = 94;
 export const LAYOUT_PLAN_PRESET_PROTOCOL_VERSION = 94;
@@ -373,6 +382,13 @@ export const WS_METHODS = {
 	mcpReconnect: "mcp.reconnect",
 	mcpReadOutput: "mcp.readOutput",
 	mcpReadLog: "mcp.readLog",
+	devkitTasks: "devkit.tasks",
+	devkitRefresh: "devkit.refresh",
+	devkitAuthStatus: "devkit.authStatus",
+	devkitSettingsGet: "devkit.settings.get",
+	devkitSettingsUpdate: "devkit.settings.update",
+	devkitJenkinsRecommend: "devkit.jenkins.recommend",
+	devkitJenkinsTrigger: "devkit.jenkins.trigger",
 } as const;
 
 export const WS_CHANNELS = {
@@ -403,6 +419,7 @@ export const WS_CHANNELS = {
 	mcpStatus: "mcp.status",
 	localesChanged: "locales.changed",
 	themesChanged: "themes.changed",
+	devkitChanged: "devkit.changed",
 } as const;
 
 type SameUnion<A extends B, B extends C, C = A> = A;
@@ -1086,10 +1103,26 @@ export interface WsMethodMap {
 		result: McpReadOutputResult;
 	};
 	"mcp.readLog": { params: { workspaceId: string; name: string }; result: McpServerLog };
+	"devkit.tasks": { params: { platform: DevkitPlatform }; result: DevkitTasksSnapshot };
+	"devkit.refresh": { params: { platform: DevkitPlatform }; result: DevkitTasksSnapshot };
+	"devkit.authStatus": { params: Record<string, never>; result: DevkitAuthState[] };
+	"devkit.settings.get": { params: Record<string, never>; result: DevkitSettingsView };
+	"devkit.settings.update": { params: DevkitSettingsInput; result: DevkitSettingsView };
+	"devkit.jenkins.recommend": {
+		params: { workspaceId: string };
+		result: DevkitJenkinsRecommendation;
+	};
+	"devkit.jenkins.trigger": {
+		params: { workspaceId: string; jobPath: string };
+		result: DevkitBuildResult;
+	};
 }
 
 /** Payload of the `mcp.status` channel: one per-session snapshot per publish. */
 export type McpStatusPayload = McpStatusSnapshot;
+
+/** Payload of the `devkit.changed` channel. */
+export type DevkitChangedPayload = DevkitPush;
 
 export type WsMethodName = SameUnion<
 	keyof WsMethodMap,

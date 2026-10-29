@@ -18,6 +18,8 @@ import {
 	RiTaskLine,
 	RiTerminalBoxFill,
 	RiTerminalBoxLine,
+	RiToolsFill,
+	RiToolsLine,
 } from "@remixicon/react";
 import type { ReactNode } from "react";
 import { CustomIcon } from "../../components/CustomIcon";
@@ -53,6 +55,8 @@ export function tabIcon(tab: LayoutTab, active = false, cls = "size-14 shrink-0"
 					return active ? <RiDiscussFill className={cls} /> : <RiDiscussLine className={cls} />;
 				case "plan":
 					return active ? <RiTaskFill className={cls} /> : <RiTaskLine className={cls} />;
+				case "devkit":
+					return active ? <RiToolsFill className={cls} /> : <RiToolsLine className={cls} />;
 				default:
 					return active ? <RiLayout2Fill className={cls} /> : <RiLayout2Line className={cls} />;
 			}

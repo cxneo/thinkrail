@@ -932,7 +932,7 @@ export function isSystemThemePair(value: unknown): value is SystemThemePair {
 	);
 }
 
-export type LayoutToolId = "projects" | "specs" | "files" | "review" | "plan";
+export type LayoutToolId = "projects" | "specs" | "files" | "review" | "plan" | "devkit";
 
 export type LayoutBottomAlignment = "center" | "center-left" | "center-right" | "full";
 
@@ -1508,4 +1508,163 @@ export function isPlanReviewResult(value: unknown): value is PlanReviewResult {
 	if (!r.findings.every(isReviewFinding)) return false;
 	if (r.verdict === "request_changes" && r.findings.length === 0) return false;
 	return true;
+}
+
+// ---------------------------------------------------------------------------
+// devkit — the business-platform workflow tool (eagle / pingcode / jenkins)
+//
+// A fork-owned feature: the host shells out to the user's `devkit` CLI,
+// caches task snapshots under the host data dir, refreshes them on a
+// per-platform cron schedule, and mirrors a workspace's Jenkins build
+// recommendation. Credentials live in the host data dir at the user's
+// explicit request (declared non-sensitive by the fork owner).
+// ---------------------------------------------------------------------------
+
+export type DevkitPlatform = "eagle" | "pingcode" | "jenkins";
+
+export const DEVKIT_PLATFORMS: readonly DevkitPlatform[] = ["eagle", "pingcode", "jenkins"];
+
+/** Runtime guard for untrusted wire values naming a devkit platform. */
+export function isDevkitPlatform(value: unknown): value is DevkitPlatform {
+	return typeof value === "string" && DEVKIT_PLATFORMS.includes(value as DevkitPlatform);
+}
+
+/** One task row as the panel renders it: code │ type │ status │ title. */
+export interface DevkitTask {
+	id: string;
+	platform: DevkitPlatform;
+	code: string;
+	title: string;
+	itemType: string;
+	status: string;
+	priority?: string;
+	assignee?: string;
+}
+
+/** Cached task state for one platform — hydrate first, stream updates after. */
+export interface DevkitTasksSnapshot {
+	platform: DevkitPlatform;
+	tasks: DevkitTask[];
+	/** ms epoch of the last successful fetch; null = never fetched. */
+	fetchedAt: number | null;
+	/** a refresh (background or manual) is in flight. */
+	fetching: boolean;
+	/** last refresh failure, shown inline (non-fatal; cache stays). */
+	error?: string;
+	/** the failure is a login problem — the panel offers the Settings tab. */
+	needsLogin?: boolean;
+	/** the `devkit` CLI could not be found on this host. */
+	cliMissing?: boolean;
+}
+
+export interface DevkitAuthState {
+	platform: DevkitPlatform;
+	loggedIn: boolean | null;
+	user?: string;
+}
+
+/** Settings read view — never carries credential values back to a client. */
+export interface DevkitPlatformSettingsView {
+	username?: string;
+	hasPassword: boolean;
+	defaultProject?: string;
+	/** 5-field cron expression, or "off" to disable background refresh. */
+	cron: string;
+}
+
+export type DevkitSettingsView = Record<DevkitPlatform, DevkitPlatformSettingsView>;
+
+/** Settings write — an absent password keeps the stored one; "" clears it. */
+export interface DevkitPlatformSettingsInput {
+	username?: string;
+	password?: string;
+	defaultProject?: string;
+	cron?: string;
+}
+
+export type DevkitSettingsInput = Partial<Record<DevkitPlatform, DevkitPlatformSettingsInput>>;
+
+export interface DevkitJenkinsParam {
+	name: string;
+	value?: string | number | boolean | null;
+	source?: string;
+	confidence?: string;
+}
+
+export interface DevkitJenkinsCandidate {
+	jobName: string;
+	jobPath: string;
+	score: number;
+	recommended: boolean;
+	params: DevkitJenkinsParam[];
+	evidence?: string[];
+}
+
+export interface DevkitJenkinsRecommendation {
+	branch: string | null;
+	status: string;
+	candidates: DevkitJenkinsCandidate[];
+	warnings?: string[];
+	error?: string;
+}
+
+export interface DevkitBuildResult {
+	jobName: string;
+	queued: boolean;
+	message: string;
+	queueUrl?: string;
+}
+
+export type DevkitPush =
+	| { kind: "tasks"; snapshot: DevkitTasksSnapshot }
+	| { kind: "settings"; view: DevkitSettingsView }
+	| { kind: "auth"; states: DevkitAuthState[] };
+
+/** Is a cron expression syntactically valid ("off" included)? Shared by both
+ * sides so the client validates before sending and the host trusts only after. */
+export function isValidDevkitCron(value: string): boolean {
+	if (value === "off") return true;
+	const fields = value.trim().split(/\s+/);
+	if (fields.length !== 5) return false;
+	const ranges: Array<[number, number, number]> = [
+		[0, 59, 59],
+		[0, 23, 23],
+		[1, 31, 31],
+		[1, 12, 12],
+		[0, 7, 7],
+	];
+	return fields.every((field, index) => {
+		const range = ranges[index];
+		if (!range) return false;
+		const [min, , max] = range;
+		return field.split(",").every((part) => {
+			const step = part.split("/");
+			if (step.length > 2) return false;
+			const base = step[0] ?? "";
+			let low: number;
+			let high: number;
+			if (base === "*") {
+				low = min;
+				high = max;
+			} else if (base.includes("-")) {
+				const [rawLow, rawHigh] = base.split("-");
+				if (rawLow === undefined || rawHigh === undefined) return false;
+				if (!/^\d+$/.test(rawLow) || !/^\d+$/.test(rawHigh)) return false;
+				low = Number(rawLow);
+				high = Number(rawHigh);
+			} else {
+				if (!/^\d+$/.test(base)) return false;
+				low = Number(base);
+				high = Number(base);
+			}
+			if (low < min || high > max || low > high) return false;
+			if (step.length === 2) {
+				const stepText = step[1] ?? "";
+				if (!/^\d+$/.test(stepText)) return false;
+				const stepValue = Number(stepText);
+				if (stepValue < 1 || stepValue > max) return false;
+			}
+			return true;
+		});
+	});
 }

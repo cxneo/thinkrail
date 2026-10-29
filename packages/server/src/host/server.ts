@@ -11,6 +11,7 @@ import type {
 	WorkspaceFsChangedPayload,
 } from "@thinkrail/contracts";
 import {
+	DEVKIT_PROTOCOL_VERSION,
 	FEEDBACK_INTERVIEW_PROTOCOL_VERSION,
 	LOCALES_PROTOCOL_VERSION,
 	MCP_PROTOCOL_VERSION,
@@ -76,6 +77,7 @@ import {
 	stopJbcentralRuntime,
 } from "../auth";
 import { forgetOpenBranchReview } from "../branch-review";
+import { setDevkitPublisher, startDevkitScheduler, stopDevkitScheduler } from "../devkit";
 import { redeliverInterview, releaseInterview, setFeedbackPublisher } from "../feedback";
 import { watchLocalLocales } from "../locales";
 import { logger, observeLoggedErrors } from "../log";
@@ -351,6 +353,8 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 					ws.subscribe(WS_CHANNELS.localesChanged);
 				if (ws.data.protocolVersion >= USER_THEMES_PROTOCOL_VERSION)
 					ws.subscribe(WS_CHANNELS.themesChanged);
+				if (ws.data.protocolVersion >= DEVKIT_PROTOCOL_VERSION)
+					ws.subscribe(WS_CHANNELS.devkitChanged);
 				const hostPlatform: HostPlatform =
 					process.platform === "darwin" || process.platform === "win32"
 						? process.platform
@@ -681,6 +685,13 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 				JSON.stringify({ channel: WS_CHANNELS.themesChanged, data: {} }),
 			),
 	});
+	setDevkitPublisher((push) => {
+		server.publish(
+			WS_CHANNELS.devkitChanged,
+			JSON.stringify({ channel: WS_CHANNELS.devkitChanged, data: push }),
+		);
+	});
+	startDevkitScheduler();
 	setWatchPublisher(publishFsChanged);
 	setSkillPathClassifier(isProjectSkillPath);
 	setFsNudgePublisher(publishFsChanged);
@@ -904,6 +915,8 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 		stopUserMcpWatch();
 		stopLocalesWatch();
 		stopThemesWatch();
+		stopDevkitScheduler();
+		setDevkitPublisher(null);
 		disposeAllSessions();
 		for (const timer of reapTimers.values()) clearTimeout(timer);
 		reapTimers.clear();

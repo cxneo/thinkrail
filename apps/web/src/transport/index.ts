@@ -19,6 +19,7 @@ export {
 	respondToTool,
 	runHostUpdate,
 	supportsChangeMutations,
+	supportsDevkit,
 	supportsHostUpdateRun,
 	supportsPlanReview,
 	supportsPlanSummaryGeneration,
