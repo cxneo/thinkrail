@@ -47,7 +47,12 @@ host cache and receives updates through the `devkit.changed` push.
 - **Credentials are stored in plain JSON at the user's explicit request**
   (declared non-sensitive by the fork owner; eagle tokens expire ~12 h, so
   persistence plus auto re-login is what makes "用户无感知" real). The read view
-  (`DevkitSettingsView`) never returns password values — `hasPassword` only.
+  (`DevkitSettingsView`) returns the password in plaintext — the fork's settings
+  form shows stored values and locks inputs until the edit action, so a re-save
+  never wipes a password the user did not retype (the original wipe bug: the form
+  sent an empty password field and the update treated "" as a clear). Update
+  merge semantics: a field omitted from the patch is kept; an explicit empty
+  string clears. Settings updates publish on `devkit.changed` (`kind: "settings"`).
 - **Hydrate-then-stream.** `devkit.tasks` answers from the disk cache
   instantly; the scheduler and manual `devkit.refresh` update it and publish
   `devkit.changed`. One refresh at a time per platform (concurrent callers
@@ -57,6 +62,10 @@ host cache and receives updates through the `devkit.changed` push.
   sides by `isValidDevkitCron` (contracts). The tick is 30 s; a missed window
   (host asleep) fires once on wake — `nextCronRunMs` is recomputed after every
   firing, never accumulated.
+- **Jenkins recommend/trigger share the task fetcher's silent relogin**: a
+  credentials error retriggers `jenkins auth login --secret-stdin` with the stored
+  settings, then one retry; a failed relogin returns `needsLogin` so the panel
+  points at Settings.
 - **Jenkins trigger approval.** The panel's confirm dialog is the
   out-of-terminal human approval devkit requires: the plan is built for the
   chosen candidate (TS mirror of `build_plan`, including the SHA-256

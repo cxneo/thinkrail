@@ -1554,11 +1554,20 @@ own section. The kebab menu (`plan-menu`, a
   `编号 │ 类型 │ 状态 │ 标题` with a status pill, and degrade on `needsLogin` / `cliMissing` with
   inline guidance. The Jenkins tab loads `devkit.jenkins.recommend` for the workspace, highlights
   the first candidate as 推荐, and triggers through a `ConfirmDialog` (`devkit.jenkins.trigger`);
-  the dialog *is* the out-of-terminal human approval the CLI requires. Settings writes
-  `devkit.settings.update` — password fields are write-only (`hasPassword` read back), cron is
-  validated client-side by the shared contracts guard. The pane is protocol-gated on
-  `DEVKIT_PROTOCOL_VERSION` and falls back to a hint on older hosts. Server side:
-  [[submodule-server-devkit]].
+  the dialog *is* the out-of-terminal human approval the CLI requires. A `needsLogin`
+  error swaps the message for a guidance line with an *Open Settings* action (the panel
+  root passes the tab-switch callback). Settings cards show the stored values (password in
+  plaintext — the fork owner's call) with inputs **locked until the pencil edit action**;
+  保存 locks again, 取消 discards the draft. Drafts, editing, and save feedback live in the
+  module-level `devkitClient` store, so tab switches (which unmount the pane) never lose an
+  in-progress edit, and the pre-populated password field means a re-save cannot wipe an
+  unretyped password. Task lists render as a real table: per-platform column headers
+  (`编号/类型/状态/标题/优先级` — priority is eagle-only), click-to-sort cycling asc→desc→none,
+  HTML5 drag-to-reorder columns, a status multi-select + code/title search filter (both local,
+  over the cached snapshot), a wrap toggle (truncate ↔ wrap), and a clear-filters control;
+  column order, filter, sort, and wrap persist in `localStorage` per platform
+  (`devkitTableState`). The pane is protocol-gated on `DEVKIT_PROTOCOL_VERSION` and falls back
+  to a hint on older hosts. Server side: [[submodule-server-devkit]].
 
 ## Get right
 

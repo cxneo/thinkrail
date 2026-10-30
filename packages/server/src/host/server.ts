@@ -77,7 +77,12 @@ import {
 	stopJbcentralRuntime,
 } from "../auth";
 import { forgetOpenBranchReview } from "../branch-review";
-import { setDevkitPublisher, startDevkitScheduler, stopDevkitScheduler } from "../devkit";
+import {
+	type publishDevkitPush,
+	setDevkitPublisher,
+	startDevkitScheduler,
+	stopDevkitScheduler,
+} from "../devkit";
 import { redeliverInterview, releaseInterview, setFeedbackPublisher } from "../feedback";
 import { watchLocalLocales } from "../locales";
 import { logger, observeLoggedErrors } from "../log";
@@ -685,7 +690,7 @@ export async function createServer(options: CreateServerOptions = {}): Promise<R
 				JSON.stringify({ channel: WS_CHANNELS.themesChanged, data: {} }),
 			),
 	});
-	setDevkitPublisher((push) => {
+	setDevkitPublisher((push: Parameters<typeof publishDevkitPush>[0]) => {
 		server.publish(
 			WS_CHANNELS.devkitChanged,
 			JSON.stringify({ channel: WS_CHANNELS.devkitChanged, data: push }),

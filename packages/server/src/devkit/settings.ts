@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { DevkitPlatform, DevkitSettingsInput, DevkitSettingsView } from "@thinkrail/contracts";
 import { DEVKIT_PLATFORMS, isValidDevkitCron } from "@thinkrail/contracts";
 import { dataDir } from "../persistence";
+import { publishDevkitPush } from "./publisher";
 
 /**
  * Fork-owned, deliberately plain: the user declared these credentials
@@ -95,7 +96,7 @@ export function devkitSettingsView(): DevkitSettingsView {
 		const settings = normalizePlatform(platform, stored.platforms[platform]);
 		view[platform] = {
 			...(settings.username ? { username: settings.username } : {}),
-			hasPassword: typeof settings.password === "string" && settings.password.length > 0,
+			...(settings.password ? { password: settings.password } : {}),
 			...(settings.defaultProject ? { defaultProject: settings.defaultProject } : {}),
 			cron: settings.cron,
 		};
@@ -129,7 +130,9 @@ export function updateDevkitSettings(input: DevkitSettingsInput): DevkitSettings
 		stored.platforms[platform] = next;
 	}
 	writeStored(stored);
-	return devkitSettingsView();
+	const view = devkitSettingsView();
+	publishDevkitPush({ kind: "settings", view });
+	return view;
 }
 
 export function devkitCachePath(platform: string): string {

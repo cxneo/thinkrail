@@ -15,6 +15,7 @@ export {
 	devkitJenkinsRecommend,
 	devkitJenkinsTrigger,
 } from "./jenkins";
+export { publishDevkitPush, setDevkitPublisher } from "./publisher";
 export { startDevkitScheduler, stopDevkitScheduler } from "./scheduler";
 export {
 	type DevkitPlatformSettings,
@@ -25,10 +26,8 @@ export {
 	updateDevkitSettings,
 } from "./settings";
 export {
-	type DevkitPublisher,
 	devkitAuthStates,
 	devkitAutoLogin,
 	devkitTasks,
 	refreshDevkitTasks,
-	setDevkitPublisher,
 } from "./tasks";

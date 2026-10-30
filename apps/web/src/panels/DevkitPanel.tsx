@@ -55,7 +55,9 @@ export function DevkitPanel({ workspaceId }: { workspaceId: string }) {
 			<div className="min-h-0 flex-1 overflow-hidden">
 				{!supported ? <DevkitUnsupported /> : null}
 				{supported && taskTab ? <DevkitTasksPane platform={taskTab} /> : null}
-				{supported && active === "jenkins" ? <DevkitJenkinsPane workspaceId={workspaceId} /> : null}
+				{supported && active === "jenkins" ? (
+					<DevkitJenkinsPane workspaceId={workspaceId} onOpenSettings={() => select("settings")} />
+				) : null}
 				{supported && active === "more" ? <DevkitMorePane /> : null}
 				{active === "settings" ? <DevkitSettingsPane /> : null}
 			</div>

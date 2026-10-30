@@ -1563,10 +1563,12 @@ export interface DevkitAuthState {
 	user?: string;
 }
 
-/** Settings read view — never carries credential values back to a client. */
+/** Settings read view — the fork shows stored credentials in plaintext
+ * (declared non-sensitive by the fork owner), so the password reads back too.
+ * An update payload keeps any field it omits. */
 export interface DevkitPlatformSettingsView {
 	username?: string;
-	hasPassword: boolean;
+	password?: string;
 	defaultProject?: string;
 	/** 5-field cron expression, or "off" to disable background refresh. */
 	cron: string;
@@ -1606,6 +1608,9 @@ export interface DevkitJenkinsRecommendation {
 	candidates: DevkitJenkinsCandidate[];
 	warnings?: string[];
 	error?: string;
+	/** credentials missing/expired — relogin with stored settings was tried
+	 * and failed; the panel points at the Settings tab. */
+	needsLogin?: boolean;
 }
 
 export interface DevkitBuildResult {

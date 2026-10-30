@@ -9,11 +9,27 @@ import { getTransport } from "../transport";
 
 type Listener = () => void;
 
+export type DevkitPlatformDraft = {
+	username: string;
+	password: string;
+	defaultProject: string;
+	cron: string;
+};
+
 type DevkitState = {
 	tasksByPlatform: Record<string, DevkitTasksSnapshot>;
 	authStates: DevkitAuthState[] | null;
 	settings: DevkitSettingsView | null;
 	loaded: boolean;
+	/** In-progress settings drafts, keyed by platform — module-level so a tab
+	 * switch (which unmounts the pane) never loses an unsaved edit. */
+	drafts: Partial<Record<DevkitPlatform, DevkitPlatformDraft>>;
+	/** Platforms whose settings inputs are unlocked for editing. Locked after
+	 * save; unlocked by the edit action. */
+	editing: Partial<Record<DevkitPlatform, boolean>>;
+	/** Last save outcome per platform (module-level; a tab switch mid-save
+	 * keeps the result visible). */
+	saveFeedback: Partial<Record<DevkitPlatform, DevkitSaveFeedback>>;
 };
 
 const state: DevkitState = {
@@ -21,6 +37,9 @@ const state: DevkitState = {
 	authStates: null,
 	settings: null,
 	loaded: false,
+	drafts: {},
+	editing: {},
+	saveFeedback: {},
 };
 
 const listeners = new Set<Listener>();
@@ -129,6 +148,60 @@ export function loadDevkitAuth(): Promise<void> {
 			emit();
 		})
 		.catch(() => {});
+}
+
+// --- settings edit-lock state (module-level; survives tab switches) ---
+
+export function setDevkitEditing(platform: DevkitPlatform, editing: boolean): void {
+	if ((state.editing[platform] ?? false) === editing) return;
+	state.editing[platform] = editing;
+	emit();
+}
+
+export function isDevkitEditing(platform: DevkitPlatform): boolean {
+	return state.editing[platform] === true;
+}
+
+export function updateDevkitDraft(
+	platform: DevkitPlatform,
+	patch: Partial<DevkitPlatformDraft>,
+): void {
+	const current = state.drafts[platform] ?? draftFromView(platform);
+	state.drafts[platform] = { ...current, ...patch };
+	emit();
+}
+
+export function devkitDraft(platform: DevkitPlatform): DevkitPlatformDraft | null {
+	return state.drafts[platform] ?? null;
+}
+
+export function discardDevkitDraft(platform: DevkitPlatform): void {
+	if (!state.drafts[platform]) return;
+	delete state.drafts[platform];
+	emit();
+}
+
+/** The draft a platform starts from: the saved view (password included — the
+ * fork shows credentials in plaintext), so re-saving never wipes a password. */
+export function draftFromView(platform: DevkitPlatform): DevkitPlatformDraft {
+	const settings = state.settings?.[platform];
+	return {
+		username: settings?.username ?? "",
+		password: settings?.password ?? "",
+		defaultProject: settings?.defaultProject ?? "",
+		cron: settings?.cron ?? "*/10 * * * *",
+	};
+}
+
+export type DevkitSaveFeedback = { saving: boolean; saved: boolean };
+
+export function markDevkitSave(platform: DevkitPlatform, feedback: DevkitSaveFeedback): void {
+	state.saveFeedback[platform] = feedback;
+	emit();
+}
+
+export function devkitSaveFeedback(platform: DevkitPlatform): DevkitSaveFeedback | null {
+	return state.saveFeedback[platform] ?? null;
 }
 
 export const devkitStore = { subscribe, snapshot };

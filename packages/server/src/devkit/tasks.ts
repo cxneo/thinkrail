@@ -1,7 +1,14 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import type { DevkitPlatform, DevkitTask, DevkitTasksSnapshot } from "@thinkrail/contracts";
 import { logger } from "../log";
-import { devkitCommand, parseDevkitJson, runDevkit, runDevkitWithStdin } from "./cli";
+import {
+	devkitCommand,
+	isDevkitAuthError,
+	parseDevkitJson,
+	runDevkit,
+	runDevkitWithStdin,
+} from "./cli";
+import { publishDevkitPush } from "./publisher";
 import { devkitCachePath, ensureDevkitDirs, loadDevkitPlatformSettings } from "./settings";
 
 type TaskPlatforms = Extract<DevkitPlatform, "eagle" | "pingcode">;
@@ -16,12 +23,6 @@ const inflight = new Map<string, Promise<DevkitTasksSnapshot>>();
 const log = logger("devkit");
 
 /** Error text fragments the devkit CLI prints for an auth problem. */
-const AUTH_ERROR_MARKERS = ["尚未登录", "未登录", "登录态已过期", "未配置凭据", "auth login"];
-
-function isAuthError(text: string): boolean {
-	return AUTH_ERROR_MARKERS.some((marker) => text.includes(marker));
-}
-
 function readCache(platform: TaskPlatforms): CachedTasks | null {
 	try {
 		const raw = JSON.parse(readFileSync(devkitCachePath(platform), "utf8")) as CachedTasks;
@@ -126,7 +127,7 @@ async function fetchTasks(platform: TaskPlatforms): Promise<DevkitTask[]> {
 	const settings = loadDevkitPlatformSettings(platform);
 	const run = await runDevkit(taskFetchArgs(platform, settings.defaultProject));
 	if (!run.ok) {
-		if (isAuthError(run.err) || isAuthError(run.out)) {
+		if (isDevkitAuthError(run.err) || isDevkitAuthError(run.out)) {
 			const relogged = await devkitAutoLogin(platform);
 			if (relogged) {
 				const retry = await runDevkit(taskFetchArgs(platform, settings.defaultProject));
@@ -161,14 +162,6 @@ function currentSnapshot(platform: TaskPlatforms): DevkitTasksSnapshot {
 	};
 }
 
-export type DevkitPublisher = (push: { kind: "tasks"; snapshot: DevkitTasksSnapshot }) => void;
-
-let publish: DevkitPublisher | null = null;
-
-export function setDevkitPublisher(fn: DevkitPublisher | null): void {
-	publish = fn;
-}
-
 /** Read-side: the current cached snapshot (hydrate-first). */
 export function devkitTasks(platform: DevkitPlatform): DevkitTasksSnapshot {
 	if (platform === "jenkins") {
@@ -186,7 +179,10 @@ export function refreshDevkitTasks(platform: DevkitPlatform): Promise<DevkitTask
 	const existing = inflight.get(platform);
 	if (existing) return existing;
 	const request = (async () => {
-		publish?.({ kind: "tasks", snapshot: { ...currentSnapshot(platform), fetching: true } });
+		publishDevkitPush({
+			kind: "tasks",
+			snapshot: { ...currentSnapshot(platform), fetching: true },
+		});
 		try {
 			const tasks = await fetchTasks(platform);
 			writeCache(platform, tasks);
@@ -198,7 +194,7 @@ export function refreshDevkitTasks(platform: DevkitPlatform): Promise<DevkitTask
 			};
 			delete snapshot.error;
 			delete snapshot.needsLogin;
-			publish?.({ kind: "tasks", snapshot });
+			publishDevkitPush({ kind: "tasks", snapshot });
 			return snapshot;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -209,7 +205,7 @@ export function refreshDevkitTasks(platform: DevkitPlatform): Promise<DevkitTask
 				...(message === "login-required" ? { needsLogin: true } : {}),
 				...(devkitCommand() ? {} : { cliMissing: true }),
 			};
-			publish?.({ kind: "tasks", snapshot });
+			publishDevkitPush({ kind: "tasks", snapshot });
 			return snapshot;
 		} finally {
 			inflight.delete(platform);

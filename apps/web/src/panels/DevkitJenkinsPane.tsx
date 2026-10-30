@@ -6,7 +6,13 @@ import { useState } from "react";
 import { getTransport } from "../transport";
 import { ConfirmDialog } from "./ConfirmDialog";
 
-export function DevkitJenkinsPane({ workspaceId }: { workspaceId: string }) {
+export function DevkitJenkinsPane({
+	workspaceId,
+	onOpenSettings,
+}: {
+	workspaceId: string;
+	onOpenSettings: () => void;
+}) {
 	const t = useT();
 	const [recommendation, setRecommendation] = useState<DevkitJenkinsRecommendation | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -51,6 +57,7 @@ export function DevkitJenkinsPane({ workspaceId }: { workspaceId: string }) {
 	};
 
 	const candidates = recommendation?.candidates ?? [];
+	const needsLoginHint = recommendation?.needsLogin === true;
 	const confirmingCandidate =
 		confirming !== null ? candidates.find((c) => c.jobPath === confirming) : undefined;
 
@@ -75,9 +82,21 @@ export function DevkitJenkinsPane({ workspaceId }: { workspaceId: string }) {
 				/>
 			</div>
 			{error ? (
-				<p data-testid="devkit-jenkins-error" className="px-8 py-4 tr-text-ui text-feedback-error">
-					{error}
-				</p>
+				<div data-testid="devkit-jenkins-error" className="flex items-center gap-8 px-8 py-4">
+					<p className="tr-text-ui text-feedback-error">
+						{needsLoginHint ? t("panels.devkit.jenkins.needsLogin") : error}
+					</p>
+					{needsLoginHint ? (
+						<Button
+							variant="outline"
+							size="s"
+							data-testid="devkit-jenkins-open-settings"
+							onClick={onOpenSettings}
+						>
+							{t("panels.devkit.jenkins.openSettings")}
+						</Button>
+					) : null}
+				</div>
 			) : null}
 			{result ? (
 				<p

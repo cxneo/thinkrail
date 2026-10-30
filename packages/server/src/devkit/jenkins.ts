@@ -8,8 +8,9 @@ import type {
 	DevkitJenkinsRecommendation,
 } from "@thinkrail/contracts";
 import { getWorkspace } from "../workspaces";
-import { parseDevkitJson, runDevkit } from "./cli";
+import { isDevkitAuthError, parseDevkitJson, runDevkit } from "./cli";
 import { devkitPlansDir, ensureDevkitDirs } from "./settings";
+import { devkitAutoLogin } from "./tasks";
 
 type RecommendJson = {
 	status?: string;
@@ -73,15 +74,32 @@ function mapRecommendation(json: RecommendJson): DevkitJenkinsRecommendation {
 	};
 }
 
+type JenkinsRun = { ok: boolean; out: string; err: string; authFailed: boolean };
+
+/** recommend + the shared silent relogin on a credentials error: a missing or
+ * expired keyring credential retriggers `jenkins auth login` with the stored
+ * settings credentials, then one retry — the task fetcher's pattern. */
+async function recommendRun(worktreePath: string): Promise<JenkinsRun> {
+	const args = ["jenkins", "build", "recommend", "--repo", worktreePath, "--json"];
+	const run = await runDevkit(args, { cwd: worktreePath, timeoutMs: 180_000 });
+	if (run.ok) return { ok: true, out: run.out, err: run.err, authFailed: false };
+	if (isDevkitAuthError(run.err) || isDevkitAuthError(run.out)) {
+		const relogged = await devkitAutoLogin("jenkins");
+		if (relogged) {
+			const retry = await runDevkit(args, { cwd: worktreePath, timeoutMs: 180_000 });
+			return { ok: retry.ok, out: retry.out, err: retry.err, authFailed: !retry.ok };
+		}
+		return { ok: false, out: run.out, err: run.err, authFailed: true };
+	}
+	return { ok: false, out: run.out, err: run.err, authFailed: false };
+}
+
 /** Read the workspace worktree's pipeline recommendation (read-only CLI call). */
 export async function devkitJenkinsRecommend(
 	workspaceId: string,
 ): Promise<DevkitJenkinsRecommendation> {
 	const workspace = getWorkspace(workspaceId);
-	const run = await runDevkit(
-		["jenkins", "build", "recommend", "--repo", workspace.worktreePath, "--json"],
-		{ cwd: workspace.worktreePath, timeoutMs: 180_000 },
-	);
+	const run = await recommendRun(workspace.worktreePath);
 	if (!run.ok) {
 		const line = (run.err || run.out).split("\n").find((candidate) => candidate.trim().length > 0);
 		return {
@@ -89,9 +107,15 @@ export async function devkitJenkinsRecommend(
 			status: "error",
 			candidates: [],
 			error: (line ?? "devkit jenkins recommend failed").trim(),
+			...(run.authFailed ? { needsLogin: true } : {}),
 		};
 	}
-	const json = parseDevkitJson<RecommendJson>(run);
+	const json = parseDevkitJson<RecommendJson>({
+		...run,
+		exitCode: 0,
+		launchFailed: false,
+		timedOut: false,
+	});
 	if (!json)
 		return { branch: null, status: "error", candidates: [], error: "unparseable recommendation" };
 	return mapRecommendation(json);

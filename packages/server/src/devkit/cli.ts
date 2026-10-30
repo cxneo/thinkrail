@@ -186,3 +186,11 @@ export function parseDevkitJson<T>(run: DevkitRun): T | null {
 		return null;
 	}
 }
+
+/** Error text fragments the devkit CLI prints for an auth problem. Shared by
+ * the task fetcher and the Jenkins flows so both auto-relogin identically. */
+const AUTH_ERROR_MARKERS = ["尚未登录", "未登录", "登录态已过期", "未配置凭据", "auth login"];
+
+export function isDevkitAuthError(text: string): boolean {
+	return AUTH_ERROR_MARKERS.some((marker) => text.includes(marker));
+}
