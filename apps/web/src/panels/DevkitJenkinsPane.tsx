@@ -2,7 +2,7 @@ import { RiRefreshLine as Refresh } from "@remixicon/react";
 import type { DevkitBuildResult, DevkitJenkinsRecommendation } from "@thinkrail/contracts";
 import { useT } from "@thinkrail/locales/react";
 import { Button, IconButton } from "@thinkrail/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getTransport } from "../transport";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -20,13 +20,15 @@ export function DevkitJenkinsPane({
 	const [confirming, setConfirming] = useState<string | null>(null);
 	const [result, setResult] = useState<DevkitBuildResult | null>(null);
 	const [triggering, setTriggering] = useState(false);
+	const [elapsed, setElapsed] = useState(0);
 
 	const load = () => {
 		setLoading(true);
 		setError(null);
 		setResult(null);
+		setElapsed(0);
 		void getTransport()
-			.request("devkit.jenkins.recommend", { workspaceId })
+			.request("devkit.jenkins.recommend", { workspaceId }, { timeoutMs: 660_000 })
 			.then(
 				(rec) => {
 					setRecommendation(rec);
@@ -39,10 +41,23 @@ export function DevkitJenkinsPane({
 			.finally(() => setLoading(false));
 	};
 
+	// The full walk takes minutes — show a live elapsed counter while it runs.
+	useEffect(() => {
+		if (!loading) return;
+		const startedAt = Date.now();
+		const timer = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+		return () => clearInterval(timer);
+	}, [loading]);
+
+	// Entering the tab starts the (cached / deduped) recommendation automatically.
+	useEffect(() => {
+		load();
+	}, [workspaceId]);
+
 	const trigger = (jobPath: string) => {
 		setTriggering(true);
 		void getTransport()
-			.request("devkit.jenkins.trigger", { workspaceId, jobPath })
+			.request("devkit.jenkins.trigger", { workspaceId, jobPath }, { timeoutMs: 660_000 })
 			.then(setResult, (reason) => {
 				setResult({
 					jobName: jobPath,
@@ -120,7 +135,20 @@ export function DevkitJenkinsPane({
 					) : null}
 				</p>
 			) : null}
-			<div className="min-h-0 flex-1 overflow-auto p-8">
+			<div className="min-h-0 flex-1 overflow-auto p-8" data-testid="devkit-jenkins-body">
+				{loading ? (
+					<div
+						data-testid="devkit-jenkins-loading"
+						className="flex flex-col items-center gap-8 py-24"
+					>
+						<p className="tr-text-ui text-text-default">
+							{t("panels.devkit.jenkins.loading", { seconds: elapsed })}
+						</p>
+						<p className="tr-text-metadata text-text-subtle">
+							{t("panels.devkit.jenkins.loadingHint")}
+						</p>
+					</div>
+				) : null}
 				{!recommendation && !loading ? (
 					<div className="flex h-full flex-col items-center justify-center gap-8">
 						<Button variant="outline" size="m" onClick={load} data-testid="devkit-jenkins-load">

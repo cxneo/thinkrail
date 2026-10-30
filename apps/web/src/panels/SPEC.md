@@ -1556,7 +1556,9 @@ own section. The kebab menu (`plan-menu`, a
   the first candidate as 推荐, and triggers through a `ConfirmDialog` (`devkit.jenkins.trigger`);
   the dialog *is* the out-of-terminal human approval the CLI requires. A `needsLogin`
   error swaps the message for a guidance line with an *Open Settings* action (the panel
-  root passes the tab-switch callback). Settings cards show the stored values (password in
+  root passes the tab-switch callback). Entering the tab auto-loads the recommendation
+  (per-request 660 s transport timeout — the walk takes minutes; the host caches 10 min
+  and dedups in flight) with a live elapsed-seconds indicator. Settings cards show the stored values (password in
   plaintext — the fork owner's call) with inputs **locked until the pencil edit action**;
   保存 locks again, 取消 discards the draft. Drafts, editing, and save feedback live in the
   module-level `devkitClient` store, so tab switches (which unmount the pane) never lose an

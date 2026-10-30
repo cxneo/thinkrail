@@ -94,21 +94,45 @@ async function recommendRun(worktreePath: string): Promise<JenkinsRun> {
 	return { ok: false, out: run.out, err: run.err, authFailed: false };
 }
 
-/** Read the workspace worktree's pipeline recommendation (read-only CLI call). */
-export async function devkitJenkinsRecommend(
-	workspaceId: string,
-): Promise<DevkitJenkinsRecommendation> {
+/** A full walk costs minutes; the display result is cached per workspace for
+ * this long (the trigger path never uses the cache — it re-runs recommend and
+ * devkit re-verifies branch/HEAD before POSTing, so a stale display cannot
+ * misfire a build). */
+const RECOMMEND_CACHE_TTL_MS = 10 * 60_000;
+
+const recommendCache = new Map<string, { at: number; result: DevkitJenkinsRecommendation }>();
+const recommendInflight = new Map<string, Promise<DevkitJenkinsRecommendation>>();
+
+/** Read the workspace worktree's pipeline recommendation (read-only CLI call,
+ * with a short-lived per-workspace cache and in-flight dedup — several clients
+ * asking at once share one walk). */
+export function devkitJenkinsRecommend(workspaceId: string): Promise<DevkitJenkinsRecommendation> {
+	const cached = recommendCache.get(workspaceId);
+	if (cached && Date.now() - cached.at < RECOMMEND_CACHE_TTL_MS) {
+		return Promise.resolve(cached.result);
+	}
+	const existing = recommendInflight.get(workspaceId);
+	if (existing) return existing;
+	const request = runJenkinsRecommend(workspaceId).finally(() => {
+		recommendInflight.delete(workspaceId);
+	});
+	recommendInflight.set(workspaceId, request);
+	return request;
+}
+
+async function runJenkinsRecommend(workspaceId: string): Promise<DevkitJenkinsRecommendation> {
 	const workspace = getWorkspace(workspaceId);
 	const run = await recommendRun(workspace.worktreePath);
 	if (!run.ok) {
 		const line = (run.err || run.out).split("\n").find((candidate) => candidate.trim().length > 0);
-		return {
+		const failed: DevkitJenkinsRecommendation = {
 			branch: null,
 			status: "error",
 			candidates: [],
 			error: (line ?? "devkit jenkins recommend failed").trim(),
 			...(run.authFailed ? { needsLogin: true } : {}),
 		};
+		return failed;
 	}
 	const json = parseDevkitJson<RecommendJson>({
 		...run,
@@ -116,9 +140,14 @@ export async function devkitJenkinsRecommend(
 		launchFailed: false,
 		timedOut: false,
 	});
-	if (!json)
+	if (!json) {
 		return { branch: null, status: "error", candidates: [], error: "unparseable recommendation" };
-	return mapRecommendation(json);
+	}
+	const result = mapRecommendation(json);
+	if (result.status !== "error") {
+		recommendCache.set(workspaceId, { at: Date.now(), result });
+	}
+	return result;
 }
 
 export type PlanFile = {

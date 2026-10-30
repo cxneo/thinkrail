@@ -66,6 +66,11 @@ host cache and receives updates through the `devkit.changed` push.
   sides by `isValidDevkitCron` (contracts). The tick is 30 s; a missed window
   (host asleep) fires once on wake — `nextCronRunMs` is recomputed after every
   firing, never accumulated.
+- **Jenkins recommend results are cached per workspace (10 min TTL) and
+  deduplicated in flight** — several clients asking at once share one walk.
+  The display cache never feeds the trigger: `devkitJenkinsTrigger` re-runs a
+  fresh recommend (bypassing the cache) and devkit re-verifies branch/HEAD
+  before POSTing.
 - **Jenkins recommend/trigger share the task fetcher's silent relogin**: a
   credentials error retriggers `jenkins auth login --secret-stdin` with the stored
   settings, then one retry; a failed relogin returns `needsLogin` so the panel

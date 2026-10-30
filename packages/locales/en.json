@@ -882,6 +882,8 @@
 	"panels.devkit.jenkins.confirmTitle": "Trigger build?",
 	"panels.devkit.jenkins.confirmTrigger": "Trigger build",
 	"panels.devkit.jenkins.load": "Recommend pipelines",
+	"panels.devkit.jenkins.loading": "Scanning Jenkins pipelines… {{seconds}}s",
+	"panels.devkit.jenkins.loadingHint": "The first scan walks every pipeline and can take a few minutes; results are cached for 10 minutes.",
 	"panels.devkit.jenkins.needsLogin": "Jenkins credentials are missing or expired — save your account in Settings.",
 	"panels.devkit.jenkins.noCandidates": "No pipeline candidates for this branch",
 	"panels.devkit.jenkins.openSettings": "Open Settings",
