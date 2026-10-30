@@ -43,7 +43,11 @@ host cache and receives updates through the `devkit.changed` push.
 - **CLI over HTTP.** devkit already owns SSO RSA login, keyring tokens,
   pagination and the strict mine-filter semantics; the CLI's `--json` output is
   the stable contract. Python startup cost (~200 ms) is invisible for a
-  background refresh.
+  background refresh. The Jenkins recommend carries a 600 s budget: the CLI
+  walks up to 500 jobs and reads each candidate's parameters (measured ~5 min
+  on the real Jenkins instance), so the panel's first load is slow by nature —
+  candidates arrive, then the user picks. A future devkit `recommend --job`
+  filter would shrink this to seconds.
 - **Credentials are stored in plain JSON at the user's explicit request**
   (declared non-sensitive by the fork owner; eagle tokens expire ~12 h, so
   persistence plus auto re-login is what makes "用户无感知" real). The read view

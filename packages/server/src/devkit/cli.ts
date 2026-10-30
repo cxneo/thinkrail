@@ -11,7 +11,7 @@ export type DevkitRun = {
 	timedOut: boolean;
 };
 
-const DEVKIT_TIMEOUT_MS = 120_000;
+const DEVKIT_TIMEOUT_MS = 600_000;
 const DEVKIT_LOGIN_TIMEOUT_MS = 60_000;
 
 let cachedCommand: string | null | undefined;

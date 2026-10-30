@@ -81,12 +81,12 @@ type JenkinsRun = { ok: boolean; out: string; err: string; authFailed: boolean }
  * settings credentials, then one retry — the task fetcher's pattern. */
 async function recommendRun(worktreePath: string): Promise<JenkinsRun> {
 	const args = ["jenkins", "build", "recommend", "--repo", worktreePath, "--json"];
-	const run = await runDevkit(args, { cwd: worktreePath, timeoutMs: 180_000 });
+	const run = await runDevkit(args, { cwd: worktreePath, timeoutMs: 600_000 });
 	if (run.ok) return { ok: true, out: run.out, err: run.err, authFailed: false };
 	if (isDevkitAuthError(run.err) || isDevkitAuthError(run.out)) {
 		const relogged = await devkitAutoLogin("jenkins");
 		if (relogged) {
-			const retry = await runDevkit(args, { cwd: worktreePath, timeoutMs: 180_000 });
+			const retry = await runDevkit(args, { cwd: worktreePath, timeoutMs: 600_000 });
 			return { ok: retry.ok, out: retry.out, err: retry.err, authFailed: !retry.ok };
 		}
 		return { ok: false, out: run.out, err: run.err, authFailed: true };
@@ -220,7 +220,7 @@ export async function devkitJenkinsTrigger(
 	const workspace = getWorkspace(workspaceId);
 	const recommendRun = await runDevkit(
 		["jenkins", "build", "recommend", "--repo", workspace.worktreePath, "--json"],
-		{ cwd: workspace.worktreePath, timeoutMs: 180_000 },
+		{ cwd: workspace.worktreePath, timeoutMs: 600_000 },
 	);
 	if (!recommendRun.ok) throw new Error("Recommendation failed — refresh the list and retry");
 	const recommendation = parseDevkitJson<RecommendJson>(recommendRun);
