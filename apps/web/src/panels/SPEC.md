@@ -1562,7 +1562,10 @@ own section. The kebab menu (`plan-menu`, a
   plaintext — the fork owner's call) with inputs **locked until the pencil edit action**;
   保存 locks again, 取消 discards the draft. Drafts, editing, and save feedback live in the
   module-level `devkitClient` store, so tab switches (which unmount the pane) never lose an
-  in-progress edit, and the pre-populated password field means a re-save cannot wipe an
+  in-progress edit; the store exposes an immutable snapshot rebuilt on every commit —
+  `useSyncExternalStore`'s Object.is comparison would treat in-place mutation as "unchanged"
+  and skip the re-render (the edit/save/cancel staleness bug), pinned by
+  `devkitClient.snapshot.test.ts`, and the pre-populated password field means a re-save cannot wipe an
   unretyped password. Task lists render as a real table: per-platform column headers
   (`编号/类型/状态/标题/优先级` — priority is eagle-only), click-to-sort cycling asc→desc→none,
   HTML5 drag-to-reorder columns, a status multi-select + code/title search filter (both local,

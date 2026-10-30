@@ -44,8 +44,35 @@ const state: DevkitState = {
 
 const listeners = new Set<Listener>();
 
+/**
+ * `state` is the mutable internal store; `view` is the immutable snapshot
+ * `useSyncExternalStore` reads. getSnapshot must return a cached value whose
+ * reference changes when the data changes — mutating `state` in place and
+ * returning it would make Object.is treat every push as "unchanged" and skip
+ * the re-render (the edit/save/cancel staleness bug). `commit` rebuilds the
+ * snapshot once per mutation, then notifies.
+ */
+let view: DevkitState = freeze(state);
+
 function emit(): void {
 	for (const listener of listeners) listener();
+}
+
+function freeze(current: DevkitState): DevkitState {
+	return {
+		...current,
+		tasksByPlatform: { ...current.tasksByPlatform },
+		authStates: current.authStates,
+		settings: current.settings,
+		drafts: { ...current.drafts },
+		editing: { ...current.editing },
+		saveFeedback: { ...current.saveFeedback },
+	};
+}
+
+function commit(): void {
+	view = freeze(state);
+	emit();
 }
 
 function subscribe(listener: Listener): () => void {
@@ -54,7 +81,7 @@ function subscribe(listener: Listener): () => void {
 }
 
 function snapshot(): DevkitState {
-	return state;
+	return view;
 }
 
 let channelBound = false;
@@ -67,13 +94,13 @@ function bindChannel(): void {
 		if (!payload || typeof payload !== "object") return;
 		if (payload.kind === "tasks") {
 			state.tasksByPlatform[payload.snapshot.platform] = payload.snapshot;
-			emit();
+			commit();
 		} else if (payload.kind === "settings") {
 			state.settings = payload.view;
-			emit();
+			commit();
 		} else if (payload.kind === "auth") {
 			state.authStates = payload.states;
-			emit();
+			commit();
 		}
 	});
 }
@@ -89,29 +116,29 @@ export function ensureDevkitLoaded(): void {
 			.request("devkit.tasks", { platform })
 			.then((snapshot) => {
 				state.tasksByPlatform[platform] = snapshot;
-				emit();
+				commit();
 			})
 			.catch(() => {});
 	}
 	void transport
 		.request("devkit.settings.get", {})
-		.then((view) => {
-			state.settings = view;
-			emit();
+		.then((settingsView) => {
+			state.settings = settingsView;
+			commit();
 		})
 		.catch(() => {});
 }
 
 export function devkitTasksOf(platform: DevkitPlatform): DevkitTasksSnapshot | null {
-	return state.tasksByPlatform[platform] ?? null;
+	return view.tasksByPlatform[platform] ?? null;
 }
 
 export function devkitSettings(): DevkitSettingsView | null {
-	return state.settings;
+	return view.settings;
 }
 
 export function devkitAuthStates(): DevkitAuthState[] | null {
-	return state.authStates;
+	return view.authStates;
 }
 
 /** Manual refresh — resolves with the fresh snapshot (or the error snapshot). */
@@ -121,7 +148,7 @@ export function refreshDevkit(platform: DevkitPlatform): Promise<DevkitTasksSnap
 		.request("devkit.refresh", { platform })
 		.then((snapshot) => {
 			state.tasksByPlatform[platform] = snapshot;
-			emit();
+			commit();
 			return snapshot;
 		})
 		.catch(() => null);
@@ -132,10 +159,10 @@ export function saveDevkitSettings(
 ): Promise<DevkitSettingsView | null> {
 	return getTransport()
 		.request("devkit.settings.update", input)
-		.then((view) => {
-			state.settings = view;
-			emit();
-			return view;
+		.then((settingsView) => {
+			state.settings = settingsView;
+			commit();
+			return settingsView;
 		})
 		.catch(() => null);
 }
@@ -145,7 +172,7 @@ export function loadDevkitAuth(): Promise<void> {
 		.request("devkit.authStatus", {})
 		.then((states) => {
 			state.authStates = states;
-			emit();
+			commit();
 		})
 		.catch(() => {});
 }
@@ -155,11 +182,11 @@ export function loadDevkitAuth(): Promise<void> {
 export function setDevkitEditing(platform: DevkitPlatform, editing: boolean): void {
 	if ((state.editing[platform] ?? false) === editing) return;
 	state.editing[platform] = editing;
-	emit();
+	commit();
 }
 
 export function isDevkitEditing(platform: DevkitPlatform): boolean {
-	return state.editing[platform] === true;
+	return view.editing[platform] === true;
 }
 
 export function updateDevkitDraft(
@@ -168,23 +195,23 @@ export function updateDevkitDraft(
 ): void {
 	const current = state.drafts[platform] ?? draftFromView(platform);
 	state.drafts[platform] = { ...current, ...patch };
-	emit();
+	commit();
 }
 
 export function devkitDraft(platform: DevkitPlatform): DevkitPlatformDraft | null {
-	return state.drafts[platform] ?? null;
+	return view.drafts[platform] ?? null;
 }
 
 export function discardDevkitDraft(platform: DevkitPlatform): void {
 	if (!state.drafts[platform]) return;
 	delete state.drafts[platform];
-	emit();
+	commit();
 }
 
 /** The draft a platform starts from: the saved view (password included — the
  * fork shows credentials in plaintext), so re-saving never wipes a password. */
 export function draftFromView(platform: DevkitPlatform): DevkitPlatformDraft {
-	const settings = state.settings?.[platform];
+	const settings = view.settings?.[platform];
 	return {
 		username: settings?.username ?? "",
 		password: settings?.password ?? "",
@@ -197,11 +224,11 @@ export type DevkitSaveFeedback = { saving: boolean; saved: boolean };
 
 export function markDevkitSave(platform: DevkitPlatform, feedback: DevkitSaveFeedback): void {
 	state.saveFeedback[platform] = feedback;
-	emit();
+	commit();
 }
 
 export function devkitSaveFeedback(platform: DevkitPlatform): DevkitSaveFeedback | null {
-	return state.saveFeedback[platform] ?? null;
+	return view.saveFeedback[platform] ?? null;
 }
 
 export const devkitStore = { subscribe, snapshot };
